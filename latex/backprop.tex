@@ -1,0 +1,154 @@
+%Dokumentenklasse Artikel, DIN-A4 Papier und Schriftgröße 12
+\documentclass[a4paper,12pt]{article}
+
+%deutsch
+% \usepackage{german}
+%bbm wird benutzt um die doppelten Striche bei Körpern zu erzeugen (N,Q,R,C)
+\usepackage{bbm}
+%Standardklassen für mathematische Zeichen
+\usepackage{amssymb,amsmath,amsthm}
+\usepackage{mathtools}
+\usepackage{hyperref}
+
+% aufzählungen
+\usepackage{paralist} 
+
+%Umlaute darstellbar
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+%alle Möglichkeiten Sätze zu definieren, das [Lemma] gibt an, wie durchgezählt wird
+\newtheorem{Lemma}{Lemma}
+\newtheorem{Theorem}[Lemma]{Theorem}
+\newtheorem{Corollary}[Lemma]{Korollar}
+\newtheorem{Definition}[Lemma]{Definition}
+\newtheorem{Satz}[Lemma]{Satz}
+\newtheorem{Proposition}[Lemma]{Proposition}
+\newtheorem{Bemerkung}[Lemma]{Bemerkung}
+\newtheorem{Beispiel}[Lemma]{Beispiel}
+
+
+%Absätze starten ohne Einschub
+\parindent0pt
+
+%aus "proof" wird "Beweis"
+\renewcommand{\proofname}{\textbf{Beweis}}
+
+%Abkürzungen, z.b. \R für die reellen Zahlen
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\renewcommand{\H}{\mathbb{H}}
+\newcommand\txteq{\stackrel{\mathclap{\normalfont\mbox{def}}}{=}}
+
+%Skalarprodukt, \sk{1}{2}
+\newcommand{\sk}[2]{\text{<}#1,#2\text{>}}
+
+
+
+%opening
+\title{Backpropagation, das lernen eines Neuronalen Netzes aus Daten}
+\author{Felix Reinbott}
+
+%Hier beginnt der Text
+\begin{document}
+
+%Titel wird hinzugefügt
+\maketitle
+\newpage
+
+%Dies ist ein Kommentar
+\section{Backpropagation}
+
+\begin{Definition}(Feed Forward Neural Network mit einer Hidden Layer)
+
+    Ein Neuronales Netz mit einer Hidden Layer der Größe $l$ mit Inputs $X \in \R^n$ und Outputs $Y \in \R^d$ ist eine Funktion der Form
+
+    \begin{equation}\label{nnet}
+        f_W \colon \R^n \to \R^d, x \mapsto f(x) := \sigma_2(W_2 \sigma_1(W_1x)) \quad W_1 \in \R^{l \times n}, W_2 \in R^{d \times l}
+    \end{equation}
+
+    Wobei hier $\sigma_1, \sigma_2$ Vektorfelder (auch genannt Aktivierungsfunktionen) auf dem entsprechenden Vektorraum sind.
+
+\end{Definition}
+
+\begin{Definition}(Mean Squared Error)
+
+    Die Verlustfunktion des Mean Squared Errors ist gegeben als
+
+    \begin{equation}
+        d_{MSE} : \R^d \times \R^d \to \R, (x,y) \mapsto \|x - y\|_2^2
+    \end{equation}
+
+\end{Definition}
+
+\begin{Satz}(Geschlossene Form des Gradienten bezüglich den Gewichten)
+
+    Seien Daten $(X_i, Y_i)_{i = 1,...,m}$ gegeben und seien die Vektorfelder $\sigma_i$ in jeder Komponente mit der Funktion $\sigma(x) = \frac{1}{1 + exp(-x)}$ gegeben, d.h. $\sigma_i(x) = (\sigma(x_1),..., \sigma(x_n)^T$. Der Gradient eines Neuronalen Netzes der Form \eqref{nnet} hat bezüglich dem Minimierungsproblem
+
+    \begin{equation}
+        \frac{d}{d W_{j,k,.}} d_{MSE}(f_W(X_i), Y_i) \quad i \in \{1,...,m\} 
+    \end{equation}
+
+    eine geschlossene Form.
+
+\end{Satz}
+
+\begin{proof}
+
+    Wir berechnen zuerst die Jakobimatrix der Vektorfelder
+
+    \begin{align*}
+        J_{\sigma_i}(x) = \begin{pmatrix}
+            \frac{d}{dx_1} \sigma(x_1) & ... & 0\\
+            ...& ... & ... \\
+            0& ... & \frac{d}{dx_n} \sigma(x_n) \\
+        \end{pmatrix}
+        = \begin{pmatrix}
+            exp(-x_1) \sigma(x_1)^2 & ... & 0\\
+            ...& ... & ... \\
+            0& ... & exp(-x_n) \sigma(x_n)^2 \\
+        \end{pmatrix}
+    \end{align*}
+
+    Als nächstes berechnen wir den Gradienten bezüglich $W_{2,k,.}$ und stellen fest, dass in der zweiten Matix eine Zeile nur auf einen Wert in der Zielvariable zeigt und dementsprechend beim Differenzieren nach der i-ten Zeile auch bloß die i-te Komponente des Outputs eine Rolle spielt. Es folgt für $k = 1,...,d$ und $ h:= \sigma_1(W_1 x)$
+
+    \begin{align*}
+        & \frac{d}{d W_{2,k,.}} d_{MSE}(f_W(X_i), Y_i) \\
+        = & \frac{d}{d W_{2,k,.}} \|f_W(X_i) - Y_i \|_2^2 \\
+        = & 2\bigl((f_W(X_i))_k - Y_{i,k} \bigl) \frac{d}{d W_{2,k,.}} (f_W(X_i))_k \\
+        = & 2\bigl((f_W(X_i))_k - Y_{i,k} \bigl) \frac{d}{d W_{2,k,.}} \sigma_2(W_2 h)_k \\
+        = & 2\bigl((f_W(X_i))_k - Y_{i,k} \bigl) exp(-W_{2,k,.} h) \sigma(W_{2,k,.} h)^2 \frac{d}{d W_{2,k,.}} W_{2,k,.} h \\
+        & = 2\bigl((f_W(X_i))_k - Y_{i,k} \bigl) exp(-W_{2,k,.} h) \sigma(W_{2,k,.} h)^2 h \\
+    \end{align*}
+
+    Nun betrachten wir den Gradienten bezüglich den Zeilen der Gewichtematrix $W_1$ für $k = 1,..., l$ und $\mathbbm{1}_d = (1,...,1)^T \in \R^d$
+
+    \begin{align*}
+        & \frac{d}{d W_{1,k,.}} d_{MSE}(f_W(X_i), Y_i)  \\
+        = & 2\bigl(f_W(X_i) - Y_{i} \bigl)^T J_{\sigma_2}(W_2 h) \mathbbm{1}_d \frac{d}{d W_{1,k,.}}(\sigma_1(W_1 X_i))^T\\
+        =  & 2\bigl(f_W(X_i) - Y_{i} \bigl)^T J_{\sigma_2}(W_2 h) \mathbbm{1}_d exp(-W_{1,k,.} h) \sigma(W_{1,k,.} h)^2 \frac{d}{d W_{1,k,.}} X_i^T W_{1,k,.}^T \\
+        =  & 2\bigl(f_W(X_i) - Y_{i} \bigl)^T J_{\sigma_2}(W_2 h) \mathbbm{1}_d exp(-W_{1,k,.} h) \sigma(W_{1,k,.} h)^2 X_i^T \\
+    \end{align*}
+\end{proof}
+
+\newpage 
+
+\begin{Bemerkung}
+
+    Damit können wir mit der Eigenschaft, dass $- \nabla_W f_W(X_i)$ für einen Datenpunkt $(X_i, Y_i)$ in die Richtung der zu optimierenden Gewichte schrittweise mit einem Verfahren in Richtung der "bessere" Gewichte gehen. Dies Motiviert folgenden Algorithmus
+
+    \begin{enumerate}[(i)]
+        \item berechne für jede Zeile der Gewichtematrizen den Gradienten
+        \item aktualisiere für $\lambda \in \R_+$ klein genug die Zeilen der Gewichtematrizen durch 
+            \begin{align*}
+                W_{j,k,.}^{z+1} = W_{j,k,.}^{z} - \lambda \frac{d}{d W_{j,k,.}} d_{MSE}(f_W(X_i), Y_i)
+            \end{align*}
+        \item Wiederhole für ein zufällig gezogenes Paar an Inputs und Outputs $(X_i, Y_i)$ bis die Verlustfunktion sich nicht mehr wesentlich verbessert
+    \end{enumerate}
+    
+    In dieser Form sind einfache Neutronale Netze also mit Methoden der Analysis II formell und struktrell zu verstehen, sowie einen naiven Trainingsalgorithmus aufstellen der das Minimierungsproblem gegeben den Daten approximativ löst.
+
+Code: \url{https://github.com/FelixRb96/mnist_for_calc1}
+
+\end{document}
